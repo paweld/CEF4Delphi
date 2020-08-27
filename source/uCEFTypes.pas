@@ -246,7 +246,9 @@ type
   PCefMediaObserver = ^TCefMediaObserver;
   PCefMediaSink = ^TCefMediaSink;
   PPCefMediaSink = ^PCefMediaSink;
+  PCefMediaSinkDeviceInfoCallback = ^TCefMediaSinkDeviceInfoCallback;
   PCefMediaSource = ^TCefMediaSource;
+  PCefMediaSinkDeviceInfo = ^TCefMediaSinkDeviceInfo;
 
   {$IFDEF LINUX}
   PXEvent   = Pointer;
@@ -313,6 +315,7 @@ type
   TCefSchemeOptions                = Integer;     // /include/internal/cef_types.h (cef_scheme_options_t)
   TCefMediaRouterCreateResult      = Integer;     // /include/internal/cef_types.h (cef_media_route_create_result_t)
   TCefCookiePriority               = Integer;     // /include/internal/cef_types.h (cef_cookie_priority_t)
+  TCefTextFieldCommands            = Integer;     // /include/internal/cef_types.h (cef_text_field_commands_t)
 
 
 
@@ -430,6 +433,17 @@ type
                           asErrorExecutingProcess);
 
   TCefProxyScheme = (psHTTP, psSOCKS4, psSOCKS5);
+
+  TCefClearDataStorageTypes = (cdstAppCache,
+                               cdstCookies,
+                               cdstFileSystems,
+                               cdstIndexeddb,
+                               cdstLocalStorage,
+                               cdstShaderCache,
+                               cdstWebsql,
+                               cdstServiceWorkers,
+                               cdstCacheStorage,
+                               cdstAll);
 
   TCefAutoplayPolicy = (appDefault,
                         appDocumentUserActivationRequired,
@@ -1121,6 +1135,15 @@ type
     CEF_CDM_REGISTRATION_ERROR_NOT_SUPPORTED
   );
 
+  // Values for browser preference "net.network_prediction_options"
+  // https://source.chromium.org/chromium/chromium/src/+/master:chrome/browser/net/prediction_options.h
+  TCefNetworkPredictionOptions = (
+    CEF_NETWORK_PREDICTION_ALWAYS,
+    CEF_NETWORK_PREDICTION_WIFI_ONLY,
+    CEF_NETWORK_PREDICTION_NEVER
+    // CEF_NETWORK_PREDICTION_DEFAULT = CEF_NETWORK_PREDICTION_WIFI_ONLY;
+  );
+
   // /include/internal/cef_types.h (cef_composition_underline_style_t)
   TCefCompositionUnderlineStyle = (
     CEF_CUS_SOLID,
@@ -1410,6 +1433,13 @@ type
     frames_per_buffer : integer;
   end;
 
+  // /include/internal/cef_types.h (cef_media_sink_device_info_t)
+  TCefMediaSinkDeviceInfo = record
+    ip_address : TCefString;
+    port       : integer;
+    model_name : TCefString;
+  end;
+
   // /include/capi/cef_base_capi.h (cef_base_ref_counted_t)
   TCefBaseRefCounted = record
     size                 : NativeUInt;
@@ -1590,7 +1620,7 @@ type
     base                        : TCefBaseRefCounted;
     on_dev_tools_message        : function(self: PCefDevToolsMessageObserver; browser: PCefBrowser; const message_: Pointer; message_size: NativeUInt): Integer; stdcall;
     on_dev_tools_method_result  : procedure(self: PCefDevToolsMessageObserver; browser: PCefBrowser; message_id, success: Integer; const result: Pointer; result_size: NativeUInt); stdcall;
-    on_dev_tools_event          : procedure(self: PCefDevToolsMessageObserver; const method: PCefString; const params: Pointer; params_size: NativeUInt); stdcall;
+    on_dev_tools_event          : procedure(self: PCefDevToolsMessageObserver; browser: PCefBrowser; const method: PCefString; const params: Pointer; params_size: NativeUInt); stdcall;
     on_dev_tools_agent_attached : procedure(self: PCefDevToolsMessageObserver; browser: PCefBrowser); stdcall;
     on_dev_tools_agent_detached : procedure(self: PCefDevToolsMessageObserver; browser: PCefBrowser); stdcall;
   end;
@@ -1638,9 +1668,16 @@ type
     get_name              : function(self: PCefMediaSink): PCefStringUserFree; stdcall;
     get_description       : function(self: PCefMediaSink): PCefStringUserFree; stdcall;
     get_icon_type         : function(self: PCefMediaSink): TCefMediaSinkIconType; stdcall;
+    get_device_info       : procedure(self: PCefMediaSink; callback: PCefMediaSinkDeviceInfoCallback); stdcall;
     is_cast_sink          : function(self: PCefMediaSink): Integer; stdcall;
     is_dial_sink          : function(self: PCefMediaSink): Integer; stdcall;
     is_compatible_with    : function(self: PCefMediaSink; source: PCefMediaSource): Integer; stdcall;
+  end;
+
+  // /include/capi/cef_media_router_capi.h (cef_media_sink_device_info_callback_t)
+  TCefMediaSinkDeviceInfoCallback = record
+    base                      : TCefBaseRefCounted;
+    on_media_sink_device_info : procedure(self: PCefMediaSinkDeviceInfoCallback; device_info: PCefMediaSinkDeviceInfo); stdcall;
   end;
 
   // /include/capi/cef_media_router_capi.h (cef_media_source_t)
@@ -1907,8 +1944,8 @@ type
   TCefResourceBundle = record
     base                        : TCefBaseRefCounted;
     get_localized_string        : function(self: PCefResourceBundle; string_id: Integer): PCefStringUserFree; stdcall;
-    get_data_resource           : function(self: PCefResourceBundle; resource_id: Integer; var data: Pointer; var data_size: NativeUInt): Integer; stdcall;
-    get_data_resource_for_scale : function(self: PCefResourceBundle; resource_id: Integer; scale_factor: TCefScaleFactor; var data: Pointer; var data_size: NativeUInt): Integer; stdcall;
+    get_data_resource           : function(self: PCefResourceBundle; resource_id: Integer): PCefBinaryValue; stdcall;
+    get_data_resource_for_scale : function(self: PCefResourceBundle; resource_id: Integer; scale_factor: TCefScaleFactor): PCefBinaryValue; stdcall;
   end;
 
   // /include/capi/cef_menu_model_delegate_capi.h (cef_menu_model_delegate_t)
@@ -3159,8 +3196,8 @@ type
     set_font_list                  : procedure(self: PCefTextfield; const font_list: PCefString); stdcall;
     apply_text_color               : procedure(self: PCefTextfield; color: TCefColor; const range: PCefRange); stdcall;
     apply_text_style               : procedure(self: PCefTextfield; style: TCefTextStyle; add: Integer; const range: PCefRange); stdcall;
-    is_command_enabled             : function(self: PCefTextfield; command_id: Integer): Integer; stdcall;
-    execute_command                : procedure(self: PCefTextfield; command_id: Integer); stdcall;
+    is_command_enabled             : function(self: PCefTextfield; command_id: TCefTextFieldCommands): Integer; stdcall;
+    execute_command                : procedure(self: PCefTextfield; command_id: TCefTextFieldCommands); stdcall;
     clear_edit_history             : procedure(self: PCefTextfield); stdcall;
     set_placeholder_text           : procedure(self: PCefTextfield; const text: PCefString); stdcall;
     get_placeholder_text           : function(self: PCefTextfield): PCefStringUserFree; stdcall;

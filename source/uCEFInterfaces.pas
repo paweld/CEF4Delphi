@@ -149,6 +149,7 @@ type
   ICefMediaRoute = interface;
   ICefMediaRouteCreateCallback = interface;
   ICefMediaSink = interface;
+  ICefMediaSinkDeviceInfoCallback = interface;
   ICefMediaSource = interface;
   ICefAudioHandler = interface;
   ICefDevToolsMessageObserver = interface;
@@ -248,7 +249,7 @@ type
   TOnDownloadImageFinishedProc         = {$IFDEF DELPHI12_UP}reference to{$ENDIF} procedure(const imageUrl: ustring; httpStatusCode: Integer; const image: ICefImage);
   TCefCookieVisitorProc                = {$IFDEF DELPHI12_UP}reference to{$ENDIF} function(const name, value, domain, path: ustring; secure, httponly, hasExpires: Boolean; const creation, lastAccess, expires: TDateTime; count, total: Integer; same_site : TCefCookieSameSite; priority : TCefCookiePriority; out deleteCookie: Boolean): Boolean;
   TCefMediaRouteCreateCallbackProc     = {$IFDEF DELPHI12_UP}reference to{$ENDIF} procedure(result: TCefMediaRouterCreateResult; const error: ustring; const route: ICefMediaRoute);
-
+  TCefMediaSinkDeviceInfoCallbackProc  = {$IFDEF DELPHI12_UP}reference to{$ENDIF} procedure(const ip_address: ustring; port: integer; const model_name: ustring);
 
   // *******************************************
   // ************ Custom interfaces ************
@@ -435,9 +436,19 @@ type
     // ICefDevToolsMessageObserver
     procedure doOnDevToolsMessage(const browser: ICefBrowser; const message_: ICefValue; var aHandled: boolean);
     procedure doOnDevToolsMethodResult(const browser: ICefBrowser; message_id: integer; success: boolean; const result: ICefValue);
-    procedure doOnDevToolsEvent(const method: ustring; const params: ICefValue);
+    procedure doOnDevToolsEvent(const browser: ICefBrowser; const method: ustring; const params: ICefValue);
     procedure doOnDevToolsAgentAttached(const browser: ICefBrowser);
     procedure doOnDevToolsAgentDetached(const browser: ICefBrowser);
+
+    // ICefExtensionHandler
+    procedure doOnExtensionLoadFailed(result: TCefErrorcode);
+    procedure doOnExtensionLoaded(const extension: ICefExtension);
+    procedure doOnExtensionUnloaded(const extension: ICefExtension);
+    function  doOnExtensionBeforeBackgroundBrowser(const extension: ICefExtension; const url: ustring; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
+    function  doOnExtensionBeforeBrowser(const extension: ICefExtension; const browser, active_browser: ICefBrowser; index: Integer; const url: ustring; active: boolean; var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
+    procedure doOnExtensionGetActiveBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; var aRsltBrowser: ICefBrowser);
+    function  doOnExtensionCanAccessBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; const target_browser: ICefBrowser): boolean;
+    function  doOnExtensionGetExtensionResource(const extension: ICefExtension; const browser: ICefBrowser; const file_: ustring; const callback: ICefGetExtensionResourceCallback): boolean;
 
     // Custom
     procedure doCookiesDeleted(numDeleted : integer);
@@ -464,6 +475,7 @@ type
     procedure doSetZoomStep(aValue : byte);
     procedure doReadZoom;
     procedure doMediaRouteCreateFinished(result: TCefMediaRouterCreateResult; const error: ustring; const route: ICefMediaRoute);
+    procedure doOnMediaSinkDeviceInfo(const ip_address: ustring; port: integer; const model_name: ustring);
     function  MustCreateAudioHandler : boolean;
     function  MustCreateLoadHandler : boolean;
     function  MustCreateFocusHandler : boolean;
@@ -1287,7 +1299,8 @@ type
     function  HasSwitches: Boolean;
     function  HasSwitch(const name: ustring): Boolean;
     function  GetSwitchValue(const name: ustring): ustring;
-    procedure GetSwitches(var switches: TStrings);
+    function  GetSwitches(var switches: TStrings): boolean; overload;
+    function  GetSwitches(var SwitchKeys, SwitchValues: TStringList): boolean; overload;
     procedure AppendSwitch(const name: ustring);
     procedure AppendSwitchWithValue(const name, value: ustring);
     function  HasArguments: Boolean;
@@ -1310,7 +1323,7 @@ type
     ['{76E5BB2B-7F69-4BC9-94C7-B55C61CE630F}']
     procedure OnDevToolsMessage(const browser: ICefBrowser; const message_: ICefValue; var aHandled: boolean);
     procedure OnDevToolsMethodResult(const browser: ICefBrowser; message_id: integer; success: boolean; const result: ICefValue);
-    procedure OnDevToolsEvent(const method: ustring; const params: ICefValue);
+    procedure OnDevToolsEvent(const browser: ICefBrowser; const method: ustring; const params: ICefValue);
     procedure OnDevToolsAgentAttached(const browser: ICefBrowser);
     procedure OnDevToolsAgentDetached(const browser: ICefBrowser);
   end;
@@ -1366,18 +1379,25 @@ type
     procedure OnMediaRouteCreateFinished(result: TCefMediaRouterCreateResult; const error: ustring; const route: ICefMediaRoute);
   end;
 
+  //
+  ICefMediaSinkDeviceInfoCallback = interface(ICefBaseRefCounted)
+    ['{633898DD-4169-45D0-ADDD-6E68B3686E0D}']
+    procedure OnMediaSinkDeviceInfo(const ip_address: ustring; port: integer; const model_name: ustring);
+  end;
+
   // TCefMediaSink
   // /include/capi/cef_media_router_capi.h (cef_media_sink_t)
   ICefMediaSink = interface(ICefBaseRefCounted)
     ['{EDA1A4B2-2A4C-42DD-A7DF-901BF93D908D}']
-    function GetId: ustring;
-    function IsValid: boolean;
-    function GetName: ustring;
-    function GetDescription: ustring;
-    function GetIconType: TCefMediaSinkIconType;
-    function IsCastSink: boolean;
-    function IsDialSink: boolean;
-    function IsCompatibleWith(const source: ICefMediaSource): boolean;
+    function  GetId: ustring;
+    function  IsValid: boolean;
+    function  GetName: ustring;
+    function  GetDescription: ustring;
+    function  GetIconType: TCefMediaSinkIconType;
+    procedure GetDeviceInfo(const callback: ICefMediaSinkDeviceInfoCallback);
+    function  IsCastSink: boolean;
+    function  IsDialSink: boolean;
+    function  IsCompatibleWith(const source: ICefMediaSource): boolean;
 
     property ID          : ustring               read GetId;
     property Name        : ustring               read GetName;
@@ -1801,9 +1821,11 @@ type
     procedure OnExtensionUnloaded(const extension: ICefExtension);
     function  OnBeforeBackgroundBrowser(const extension: ICefExtension; const url: ustring; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
     function  OnBeforeBrowser(const extension: ICefExtension; const browser, active_browser: ICefBrowser; index: Integer; const url: ustring; active: boolean; var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
-    function  GetActiveBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean): ICefBrowser;
+    procedure GetActiveBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; var aRsltBrowser: ICefBrowser);
     function  CanAccessBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; const target_browser: ICefBrowser): boolean;
     function  GetExtensionResource(const extension: ICefExtension; const browser: ICefBrowser; const file_: ustring; const callback: ICefGetExtensionResourceCallback): boolean;
+
+    procedure RemoveReferences; // custom procedure to clear all references
   end;
 
   // TCefExtension
@@ -1818,12 +1840,28 @@ type
     function  GetLoaderContext : ICefRequestContext;
     function  IsLoaded : boolean;
     procedure unload;
+    function  GetBrowserActionPopup : ustring;
+    function  GetBrowserActionIcon : ustring;
+    function  GetPageActionPopup : ustring;
+    function  GetPageActionIcon : ustring;
+    function  GetOptionsPage : ustring;
+    function  GetOptionsUIPage : ustring;
+    function  GetBackgroundPage : ustring;
+    function  GetURL : ustring;
 
-    property  Identifier    : ustring              read GetIdentifier;
-    property  Path          : ustring              read GetPath;
-    property  Manifest      : ICefDictionaryValue  read GetManifest;
-    property  Handler       : ICefExtensionHandler read GetHandler;
-    property  LoaderContext : ICefRequestContext   read GetLoaderContext;
+    property  Identifier          : ustring               read GetIdentifier;
+    property  Path                : ustring               read GetPath;
+    property  Manifest            : ICefDictionaryValue   read GetManifest;
+    property  Handler             : ICefExtensionHandler  read GetHandler;
+    property  LoaderContext       : ICefRequestContext    read GetLoaderContext;
+    property  BrowserActionPopup  : ustring               read GetBrowserActionPopup;
+    property  BrowserActionIcon   : ustring               read GetBrowserActionIcon;
+    property  PageActionPopup     : ustring               read GetPageActionPopup;
+    property  PageActionIcon      : ustring               read GetPageActionIcon;
+    property  OptionsPage         : ustring               read GetOptionsPage;
+    property  OptionsUIPage       : ustring               read GetOptionsUIPage;
+    property  BackgroundPage      : ustring               read GetBackgroundPage;
+    property  URL                 : ustring               read GetURL;
   end;
 
   // TCefLoadHandler
@@ -2368,8 +2406,8 @@ type
   ICefResourceBundle = interface(ICefBaseRefCounted)
     ['{3213CF97-C854-452B-B615-39192F8D07DC}']
     function GetLocalizedString(stringId: Integer): ustring;
-    function GetDataResource(resourceId: Integer; var data: Pointer; var dataSize: NativeUInt): Boolean;
-    function GetDataResourceForScale(resourceId: Integer; scaleFactor: TCefScaleFactor; var data: Pointer; var dataSize: NativeUInt): Boolean;
+    function GetDataResource(resourceId: Integer): ICefBinaryValue;
+    function GetDataResourceForScale(resourceId: Integer; scaleFactor: TCefScaleFactor): ICefBinaryValue;
   end;
 
   // TCefImage
@@ -2626,8 +2664,8 @@ type
     procedure SetFontList(const font_list: ustring);
     procedure ApplyTextColor(color: TCefColor; const range: TCefRange);
     procedure ApplyTextStyle(style: TCefTextStyle; add: boolean; const range: TCefRange);
-    function  IsCommandEnabled(command_id: Integer): boolean;
-    procedure ExecuteCommand(command_id: Integer);
+    function  IsCommandEnabled(command_id: TCefTextFieldCommands): boolean;
+    procedure ExecuteCommand(command_id: TCefTextFieldCommands);
     procedure ClearEditHistory;
     procedure SetPlaceholderText(const text_: ustring);
     function  GetPlaceholderText : ustring;

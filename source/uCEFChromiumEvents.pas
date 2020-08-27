@@ -183,9 +183,19 @@ type
   // ICefDevToolsMessageObserver
   TOnDevToolsMessageEvent         = procedure(Sender: TObject; const browser: ICefBrowser; const message_: ICefValue; var aHandled: boolean) of object;
   TOnDevToolsMethodResultEvent    = procedure(Sender: TObject; const browser: ICefBrowser; message_id: integer; success: boolean; const result: ICefValue) of object;
-  TOnDevToolsEventEvent           = procedure(Sender: TObject; const method: ustring; const params: ICefValue) of object;
+  TOnDevToolsEventEvent           = procedure(Sender: TObject; const browser: ICefBrowser; const method: ustring; const params: ICefValue) of object;
   TOnDevToolsAgentAttachedEvent   = procedure(Sender: TObject; const browser: ICefBrowser) of object;
   TOnDevToolsAgentDetachedEvent   = procedure(Sender: TObject; const browser: ICefBrowser) of object;
+
+  // ICefExtensionHandler
+  TOnExtensionLoadFailedEvent     = procedure(Sender: TObject; result: TCefErrorcode) of object;
+  TOnExtensionLoadedEvent         = procedure(Sender: TObject; const extension: ICefExtension) of object;
+  TOnExtensionUnloadedEvent       = procedure(Sender: TObject; const extension: ICefExtension) of object;
+  TOnBeforeBackgroundBrowserEvent = procedure(Sender: TObject; const extension: ICefExtension; const url: ustring; var client: ICefClient; var settings: TCefBrowserSettings; var aResult : boolean) of object;
+  TOnBeforeBrowserEvent           = procedure(Sender: TObject; const extension: ICefExtension; const browser, active_browser: ICefBrowser; index: Integer; const url: ustring; active: boolean; var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings; var aResult : boolean) of object;
+  TOnGetActiveBrowserEvent        = procedure(Sender: TObject; const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; var aRsltBrowser : ICefBrowser) of object;
+  TOnCanAccessBrowserEvent        = procedure(Sender: TObject; const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; const target_browser: ICefBrowser; var aResult : boolean) of object;
+  TOnGetExtensionResourceEvent    = procedure(Sender: TObject; const extension: ICefExtension; const browser: ICefBrowser; const file_: ustring; const callback: ICefGetExtensionResourceCallback; var aResult : boolean) of object;
 
   // Custom
   TOnTextResultAvailableEvent              = procedure(Sender: TObject; const aText : ustring) of object;
@@ -201,6 +211,7 @@ type
   TOnCookieSet                             = procedure(Sender: TObject; aSuccess : boolean; aID : integer) of object;
   TOnZoomPctAvailable                      = procedure(Sender: TObject; const aZoomPct : double) of object;
   TOnMediaRouteCreateFinishedEvent         = procedure(Sender: TObject; result: TCefMediaRouterCreateResult; const error: ustring; const route: ICefMediaRoute) of object;
+  TOnMediaSinkDeviceInfoEvent              = procedure(Sender: TObject; const ip_address: ustring; port: integer; const model_name: ustring) of object;
   {$IFDEF MSWINDOWS}
   TOnCompMsgEvent                          = procedure(var aMessage: TMessage; var aHandled: Boolean) of object;
   {$ENDIF}

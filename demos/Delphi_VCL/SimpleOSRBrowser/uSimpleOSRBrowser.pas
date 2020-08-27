@@ -217,6 +217,22 @@ uses
 // the width and height of the buffer parameter, and the internal buffer size in
 // the TBufferPanel component.
 
+// **********************************************************************************************
+// ************************************** ATTENTION! ********************************************
+// **********************************************************************************************
+// *                                                                                            *
+// * If your Delphi/Lazarus version doesn't have full touch and pen support you will have       *
+// * issues building this demo.                                                                 *
+// *                                                                                            *
+// * Some constants and types like POINTER_INPUT_TYPE, POINTER_PEN_INFO, etc. need to be        *
+// * defined in order to test touch screens and pens on Windows.                                *
+// *                                                                                            *
+// * Try adding this unit made by Andreas Hausladen to the "uses" section if you get            *
+// * "Undeclared identifier" errors :                                                           *
+// * https://github.com/ahausladen/ObjectPascal-WinAPIs/blob/master/WinApi/WinApi.WMPointer.pas *
+// *                                                                                            *
+// **********************************************************************************************
+
 // This is the destruction sequence in OSR mode :
 // 1- FormCloseQuery sets CanClose to the initial FCanClose value (False) and
 //    calls chrmosr.CloseBrowser(True).
@@ -238,7 +254,7 @@ begin
   // If you need transparency leave the GlobalCEFApp.BackgroundColor property
   // with the default value or set the alpha channel to 0
   if TRANSPARENT_BROWSER then
-    GlobalCEFApp.BackgroundColor := CefColorSetARGB($00, $FF, $FF, $FF)
+    GlobalCEFApp.BackgroundColor := CefColorSetARGB($00, $00, $00, $00)
    else
     GlobalCEFApp.BackgroundColor := CefColorSetARGB($FF, $FF, $FF, $FF);
 end;
@@ -779,7 +795,7 @@ begin
       // If you need transparency leave the chrmosr.Options.BackgroundColor property
       // with the default value or set the alpha channel to 0
       if TRANSPARENT_BROWSER then
-        chrmosr.Options.BackgroundColor := CefColorSetARGB($00, $FF, $FF, $FF)
+        chrmosr.Options.BackgroundColor := CefColorSetARGB($00, $00, $00, $00)
        else
         chrmosr.Options.BackgroundColor := CefColorSetARGB($FF, $FF, $FF, $FF);
 

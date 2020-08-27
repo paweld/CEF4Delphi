@@ -245,14 +245,6 @@ function CefUriDecode(const text: ustring; convertToUtf8: Boolean; unescapeRule:
 
 function CefGetPath(const aPathKey : TCefPathKey) : ustring;
 
-function CefParseJson(const jsonString: ustring; options: TCefJsonParserOptions = JSON_PARSER_RFC): ICefValue; overload;
-function CefParseJson(const json: Pointer; json_size: NativeUInt; options: TCefJsonParserOptions = JSON_PARSER_RFC): ICefValue; overload;
-function CefParseJsonAndReturnError(const jsonString   : ustring;
-                                          options      : TCefJsonParserOptions;
-                                    out   errorCodeOut : TCefJsonParserError;
-                                    out   errorMsgOut  : ustring): ICefValue;
-function CefWriteJson(const node: ICefValue; options: TCefJsonWriterOptions): ustring;
-
 function CefCreateDirectory(const fullPath: ustring): Boolean;
 function CefGetTempDirectory(out tempDir: ustring): Boolean;
 function CefCreateNewTempDirectory(const prefix: ustring; out newTempPath: ustring): Boolean;
@@ -381,7 +373,7 @@ end;
 
 function CefString(const str: PCefString): ustring;
 begin
-  if (str <> nil) then
+  if (str <> nil) and (str^.str <> nil) and (str^.length > 0) and (str^.length < nativeuint(high(integer))) then
     SetString(Result, str^.str, str^.length)
    else
     Result := '';
@@ -1195,9 +1187,9 @@ begin
       // http://www.magpcss.org/ceforum/viewtopic.php?f=6&t=14503#p32263
 
       TempList := TStringList.Create;
-      TempList.Add(TempDir + CHROMEELF_DLL);
       TempList.Add(TempDir + LIBCEF_DLL);
       {$IFDEF MSWINDOWS}
+      TempList.Add(TempDir + CHROMEELF_DLL);
       TempList.Add(TempDir + 'd3dcompiler_47.dll');
       TempList.Add(TempDir + 'libEGL.dll');
       TempList.Add(TempDir + 'libGLESv2.dll');
@@ -1481,86 +1473,29 @@ begin
             IntToStr(aVersionInfo.Build);
 end;
 
-function Is32BitProcess : boolean;
 {$IFDEF MSWINDOWS}
+function Is32BitProcessRunningIn64BitOS : boolean;
 var
   TempResult : BOOL;
-{$ENDIF}
 begin
-  {$IFDEF CPUX32}
-    Result := True;
-    exit;
-  {$ENDIF}
+  Result := ProcessUnderWow64(GetCurrentProcess, TempResult) and TempResult;
+end;
+{$ENDIF}
 
-  {$IFDEF CPU386}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF CPUi386}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF CPUPOWERPC32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF CPUSPARC32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF CPU32BITS}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF CPUARM32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF WIN32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF IOS32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF MACOS32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF LINUX32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF POSIX32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF ANDROID32}
-    Result := True;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF MSWINDOWS}
-    Result := ProcessUnderWow64(GetCurrentProcess, TempResult) and TempResult;
-    exit;
-  {$ENDIF}
-
-  {$IFDEF DELPHI17_UP}
-    Result := TOSVersion.Architecture in [arIntelX86, arARM32];
+function Is32BitProcess : boolean;
+begin
+  {$IFDEF TARGET_32BITS}
+  Result := True;
   {$ELSE}
-    Result := False;
+    {$IFDEF MSWINDOWS}
+    Result := Is32BitProcessRunningIn64BitOS;
+    {$ELSE}
+      {$IFDEF DELPHI17_UP}
+        Result := TOSVersion.Architecture in [arIntelX86, arARM32];
+      {$ELSE}
+        Result := False;
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 end;
 
@@ -1805,49 +1740,6 @@ begin
     Result := '';
 end;
 
-function CefParseJson(const jsonString: ustring; options: TCefJsonParserOptions): ICefValue;
-var
-  TempJSON : TCefString;
-begin
-  if (GlobalCEFApp <> nil) and GlobalCEFApp.LibLoaded then
-    begin
-      TempJSON := CefString(jsonString);
-      Result   := TCefValueRef.UnWrap(cef_parse_json(@TempJSON, options));
-    end
-   else
-    Result := nil;
-end;
-
-function CefParseJson(const json: Pointer; json_size: NativeUInt; options: TCefJsonParserOptions): ICefValue;
-begin
-  if (GlobalCEFApp <> nil) and GlobalCEFApp.LibLoaded and (json <> nil) and (json_size > 0) then
-    Result := TCefValueRef.UnWrap(cef_parse_json_buffer(json, json_size, options))
-   else
-    Result := nil;
-end;
-
-function CefParseJsonAndReturnError(const jsonString   : ustring;
-                                          options      : TCefJsonParserOptions;
-                                    out   errorCodeOut : TCefJsonParserError;
-                                    out   errorMsgOut  : ustring): ICefValue;
-var
-  TempJSON, TempError : TCefString;
-begin
-  if (GlobalCEFApp <> nil) and GlobalCEFApp.LibLoaded then
-    begin
-      CefStringInitialize(@TempError);
-      TempJSON    := CefString(jsonString);
-      Result      := TCefValueRef.UnWrap(cef_parse_jsonand_return_error(@TempJSON, options, @errorCodeOut, @TempError));
-      errorMsgOut := CefStringClearAndGet(@TempError);
-    end
-   else
-    begin
-      errorCodeOut := JSON_NO_ERROR;
-      Result       := nil;
-      errorMsgOut  := '';
-    end;
-end;
-
 function CefGetPath(const aPathKey : TCefPathKey) : ustring;
 var
   TempPath : TCefString;
@@ -1859,14 +1751,6 @@ begin
       if (cef_get_path(aPathKey, @TempPath) <> 0) then
         Result := CefStringClearAndGet(@TempPath);
     end
-   else
-    Result := '';
-end;
-
-function CefWriteJson(const node: ICefValue; options: TCefJsonWriterOptions): ustring;
-begin
-  if (GlobalCEFApp <> nil) and GlobalCEFApp.LibLoaded then
-    Result := CefStringFreeAndGet(cef_write_json(CefGetData(node), options))
    else
     Result := '';
 end;
