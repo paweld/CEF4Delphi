@@ -10,7 +10,7 @@
 // For more information about CEF4Delphi visit :
 //         https://www.briskbard.com/index.php?lang=en&pageid=cef
 //
-//        Copyright © 2020 Salvador Diaz Fau. All rights reserved.
+//        Copyright © 2021 Salvador Diaz Fau. All rights reserved.
 //
 // ************************************************************************
 // ************ vvvv Original license and comments below vvvv *************
@@ -593,10 +593,9 @@ begin
         begin
           TempSource := Chromium1.GetSource(TempURN);
 
-          if (TempSource <> nil) and TempSource.IsValid then
+          if (TempSource <> nil) then
             begin
-              if (FSinks[SinksLbx.ItemIndex].SinkIntf <> nil) and
-                 FSinks[SinksLbx.ItemIndex].SinkIntf.IsValid then
+              if (FSinks[SinksLbx.ItemIndex].SinkIntf <> nil) then
                 begin
                   if FSinks[SinksLbx.ItemIndex].SinkIntf.IsCompatibleWith(TempSource) then
                     Chromium1.CreateRoute(TempSource, FSinks[SinksLbx.ItemIndex].SinkIntf)
@@ -649,7 +648,6 @@ begin
             FSinks[i].Name        := aSinks[i].Name;
             FSinks[i].Description := aSinks[i].Description;
             FSinks[i].IconType    := aSinks[i].IconType;
-            FSinks[i].Valid       := aSinks[i].IsValid;
             FSinks[i].SinkIntf    := aSinks[i];
 
             if aSinks[i].IsCastSink then

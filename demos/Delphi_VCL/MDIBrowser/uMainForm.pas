@@ -10,7 +10,7 @@
 // For more information about CEF4Delphi visit :
 //         https://www.briskbard.com/index.php?lang=en&pageid=cef
 //
-//        Copyright © 2020 Salvador Diaz Fau. All rights reserved.
+//        Copyright © 2021 Salvador Diaz Fau. All rights reserved.
 //
 // ************************************************************************
 // ************ vvvv Original license and comments below vvvv *************
@@ -65,6 +65,7 @@ type
     NewBtn: TSpeedButton;
     ExitBtn: TSpeedButton;
     NewContextChk: TCheckBox;
+    IncognitoChk: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure NewBtnClick(Sender: TObject);
     procedure ExitBtnClick(Sender: TObject);
@@ -115,8 +116,12 @@ end;
 
 procedure CreateGlobalCEFApp;
 begin
+  // GlobalCEFApp.RootCache must be the parent of all cache directories
+  // used by the browsers in the application.
   GlobalCEFApp                      := TCefApplication.Create;
   GlobalCEFApp.OnContextInitialized := GlobalCEFApp_OnContextInitialized;
+  GlobalCEFApp.RootCache            := ExtractFileDir(ParamStr(0));
+  GlobalCEFApp.cache                := GlobalCEFApp.RootCache + '\cache';
 end;
 
 procedure TMainForm.CreateMDIChild(const Name: string);

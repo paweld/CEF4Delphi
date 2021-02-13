@@ -62,7 +62,10 @@ uses
   uCEFBrowserViewComponent, uCEFWindowComponent, uCEFPanelComponent, 
   uCEFScrollViewComponent, uCEFTextfieldComponent, uCEFViewComponent, 
   uCEFViewsFrameworkEvents, uCEFAudioHandler, uCEFDevToolsMessageObserver, 
-  uCEFMediaSinkDeviceInfoCallback, uCEFJson, LazarusPackageIntf;
+  uCEFMediaSinkDeviceInfoCallback, uCEFJson, uCEFBitmapBitBuffer, 
+  uCEFPrintDialogCallback, uCEFPrintHandler, uCEFPrintJobCallback, 
+  uCEFLinuxFunctions, uCEFLinuxTypes, uCEFLinuxConstants, 
+  uCEFWorkSchedulerQueueThread, LazarusPackageIntf;
 
 implementation
 
